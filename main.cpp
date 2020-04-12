@@ -1,6 +1,7 @@
 #include "mbed.h"
 #include "fsl_port.h"
 #include "fsl_gpio.h"
+#include <math.h>
 #define UINT14_MAX        16383
 // FXOS8700CQ I2C address
 #define FXOS8700CQ_SLAVE_ADDR0 (0x1E<<1) // with pins SA0=0, SA1=0
@@ -21,7 +22,7 @@
 #define FXOS8700Q_M_CTRL_REG1 0x5B
 #define FXOS8700Q_M_CTRL_REG2 0x5C
 #define FXOS8700Q_WHOAMI_VAL 0xC7
-
+#define PI 3.14159265
 I2C i2c( PTD9,PTD8);
 Serial pc(USBTX, USBRX);
 DigitalOut led(LED1);
@@ -33,11 +34,29 @@ int m_addr = FXOS8700CQ_SLAVE_ADDR1;
 
 void FXOS8700CQ_readRegs(int addr, uint8_t * data, int len);
 void FXOS8700CQ_writeRegs(uint8_t * data, int len);
-
+float CalculateAngle() {
+    float length_a = sqrt(t[0] * t[0] + t[2] * t[2]);
+    float length_b = sqrt(init[0] * init[0] + init[2] * init[2]);
+    float dot = (t[0] * init[0]) + (t[2] * init[2]);
+    float cos_theta = dot / (length_a * length_b);
+    float degree = acos(cos_theta) * 180.0 / PI;
+    return degree;
+}
 void Logger() {
     led = 0;
     for(int i = 0; i < 100; i++) {
+        float degree;
+        int tilt;
         pc.printf("%1.4f %1.4f %1.4f\r\n", t[0], t[1], t[2]);
+        degree = CalculateAngle();
+        if (degree > 45) {
+            tilt = 1;
+            pc.printf("%d\r\n", tilt);
+        }
+        else {
+            tilt = 0;
+            pc.printf("%d\r\n", tilt);
+        }
         wait(0.1);
     }
     led = 1;
