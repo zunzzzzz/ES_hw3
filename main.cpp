@@ -24,27 +24,34 @@
 #define FXOS8700Q_WHOAMI_VAL 0xC7
 #define PI 3.14159265
 I2C i2c( PTD9,PTD8);
+Ticker time_up;
 Serial pc(USBTX, USBRX);
 DigitalOut led(LED1);
 InterruptIn btn(SW2);
 float t[3];
 float init[3];
 EventQueue eventQueue;
+EventQueue blinkQueue;
 int m_addr = FXOS8700CQ_SLAVE_ADDR1;
 
 void FXOS8700CQ_readRegs(int addr, uint8_t * data, int len);
 void FXOS8700CQ_writeRegs(uint8_t * data, int len);
 float CalculateAngle() {
-    float length_a = sqrt(t[0] * t[0] + t[2] * t[2]);
-    float length_b = sqrt(init[0] * init[0] + init[2] * init[2]);
-    float dot = (t[0] * init[0]) + (t[2] * init[2]);
+    float length_a = sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]);
+    float length_b = sqrt(init[0] * init[0] + init[1] * init[1] + init[2] * init[2]);
+    float dot = (t[0] * init[0]) + (t[1] * init[1]) + (t[2] * init[2]);
     float cos_theta = dot / (length_a * length_b);
     float degree = acos(cos_theta) * 180.0 / PI;
     return degree;
 }
+void Blink(){
+    led = !led;
+}
+
 void Logger() {
-    led = 0;
     for(int i = 0; i < 100; i++) {
+        
+        if(i % 5 == 0) led = !led;
         float degree;
         int tilt;
         pc.printf("%1.4f %1.4f %1.4f\r\n", t[0], t[1], t[2]);
@@ -59,9 +66,9 @@ void Logger() {
         }
         wait(0.1);
     }
-    led = 1;
     return;
 }
+
 void btn_fall_irq() {
     eventQueue.call(&Logger);
 }
@@ -73,7 +80,7 @@ int main() {
     eventThread.start(callback(&eventQueue, &EventQueue::dispatch_forever));
     btn.fall(&btn_fall_irq);
 
-    uint8_t who_am_i, data[2], res[6];
+    uint8_t data[2], res[6];
     int16_t acc16;
     
     
